@@ -84,14 +84,14 @@ st.subheader('Bar Graph Comparing Price Values of 4 Companies in Coming Years')
 plt.figure(figsize=(10, 6))
 for stock in stocks:
     data_stock = load_data(stock)
-    plt.bar(stock, data_stock['Close'][-1], label=stock)
+    if not data_stock.empty:
+        plt.bar(stock, data_stock['Close'].iloc[-1], label=stock)
 
 plt.xlabel('Company')
 plt.ylabel('Price')
 plt.title('Price Values of 4 Companies')
 plt.legend()
 st.pyplot()
-
 
 
 
