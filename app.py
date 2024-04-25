@@ -2,10 +2,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import yfinance as yf
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import MinMaxScaler
-from keras.models import Sequential
-from keras.layers import Dense, Dropout, LSTM
-from keras.models import load_model
+from sklearn.metrics import mean_squared_error
 
 # Download data
 start = '2012-01-01'
@@ -26,7 +25,7 @@ plt.plot(data.Close, 'g', label='Closing Price')
 plt.legend()
 plt.show()
 
-# Prepare data for LSTM
+# Prepare data for Random Forest
 scaler = MinMaxScaler(feature_range=(0, 1))
 data_scaled = scaler.fit_transform(data.Close.values.reshape(-1, 1))
 
@@ -35,60 +34,30 @@ for i in range(100, len(data_scaled)):
     x.append(data_scaled[i-100:i, 0])
     y.append(data_scaled[i, 0])
 x, y = np.array(x), np.array(y)
-x = np.reshape(x, (x.shape[0], x.shape[1], 1))
-
-# Define LSTM model
-model = Sequential()
-model.add(LSTM(units=50, activation='relu', return_sequences=True, input_shape=(x.shape[1], 1)))
-model.add(Dropout(0.2))
-model.add(LSTM(units=60, activation='relu', return_sequences=True))
-model.add(Dropout(0.3))
-model.add(LSTM(units=80, activation='relu', return_sequences=True))
-model.add(Dropout(0.4))
-model.add(LSTM(units=120, activation='relu'))
-model.add(Dropout(0.5))
-model.add(Dense(units=1))
-
-model.compile(optimizer='adam', loss='mean_squared_error')
-
-# Train the model
-model.fit(x, y, epochs=50, batch_size=32, verbose=1)
-
-# Save the model
-model.save('afroze')
-
-# Load the model
-model = load_model('afroze')
 
 # Split data into train and test sets
 split_index = int(len(data) * 0.8)
-data_train = data.Close[:split_index]
-data_test = data.Close[split_index:]
+x_train, y_train = x[:split_index], y[:split_index]
+x_test, y_test = x[split_index:], y[split_index:]
 
-# Scale the test data
-data_test_scaled = scaler.transform(data_test.values.reshape(-1, 1))
-
-# Prepare test data
-x_test, y_test = [], []
-for i in range(100, len(data_test_scaled)):
-    x_test.append(data_test_scaled[i-100:i, 0])
-    y_test.append(data_test_scaled[i, 0])
-x_test, y_test = np.array(x_test), np.array(y_test)
-x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
+# Train the Random Forest model
+model = RandomForestRegressor(n_estimators=100, random_state=42)
+model.fit(x_train, y_train)
 
 # Evaluate the model
-scores = model.evaluate(x_test, y_test)
-LSTM_accuracy = scores * 100
-print('Test accuracy:', LSTM_accuracy, '%')
+y_pred_train = model.predict(x_train)
+mse_train = mean_squared_error(y_train, y_pred_train)
+print('Train MSE:', mse_train)
 
-# Predictions
-y_predict = model.predict(x_test)
+y_pred_test = model.predict(x_test)
+mse_test = mean_squared_error(y_test, y_pred_test)
+print('Test MSE:', mse_test)
 
 # Plot predictions
 plt.figure(figsize=(10, 6))
 plt.plot(y_test, color='blue', label='Actual Stock Price')
-plt.plot(y_predict, color='red', label='Predicted Stock Price')
-plt.title('Stock Price Prediction')
+plt.plot(y_pred_test, color='red', label='Predicted Stock Price')
+plt.title('Stock Price Prediction (Random Forest)')
 plt.xlabel('Time')
 plt.ylabel('Stock Price')
 plt.legend()
