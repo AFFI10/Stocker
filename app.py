@@ -80,16 +80,13 @@ plt.ylabel('Price')
 plt.title('Predicted Stock Prices')
 plt.legend()
 st.pyplot()
-st.subheader('Bar Graph Comparing Price Values of 4 Companies in Coming Years')
-plt.figure(figsize=(10, 6))
-for stock in stocks:
-    data_stock = load_data(stock)
-    if not data_stock.empty:
-        plt.bar(stock, data_stock['Close'].iloc[-1], label=stock)
-
-plt.xlabel('Company')
-plt.ylabel('Price')
-plt.title('Price Values of 4 Companies')
+st.subheader('Predicted Stock Price for the Next {} Years'.format(n_years))
+plt.figure(figsize=(8, 6))
+plt.bar('Current', data['Close'][-1], color='blue', label='Current Price')
+plt.bar('Predicted', predicted_values, color='orange', label='Predicted Price')
+plt.xlabel('Price')
+plt.ylabel('Stock Price')
+plt.title('Predicted Stock Price for {} in the Next {} Years'.format(selected_stock, n_years))
 plt.legend()
 st.pyplot()
 
