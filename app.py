@@ -6,8 +6,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Load Data
-
-
 START = "2015-01-01"
 TODAY = date.today().strftime("%Y-%m-%d")
 
@@ -68,3 +66,34 @@ plt.ylabel('Price')
 plt.title('Stock Price Forecast using Simple Moving Average (SMA)')
 plt.legend()
 st.pyplot()
+
+# Predicted values
+predicted_values = sma_forecast[-period:]
+
+# Plot predicted values
+st.subheader('Predicted Values')
+plt.figure(figsize=(10, 6))
+plt.plot(data['Date'][-period:], data['Close'][-period:], label='Actual')
+plt.plot(data['Date'][-period:], predicted_values, label='Predicted')
+plt.xlabel('Date')
+plt.ylabel('Price')
+plt.title('Predicted Stock Prices')
+plt.legend()
+st.pyplot()
+
+# Additional features
+st.sidebar.header('Additional Features')
+st.sidebar.markdown("""
+- Adjust the window size for Simple Moving Average (SMA) calculation.
+- Choose different stocks for analysis.
+- Forecast for a different number of years.
+""")
+
+# Display additional information
+st.sidebar.subheader('About')
+st.sidebar.info('This app is for educational purposes only. Use at your own risk!')
+
+# Display contact information
+st.sidebar.subheader('Contact Information')
+st.sidebar.text('Developer: Disha Barmola')
+
