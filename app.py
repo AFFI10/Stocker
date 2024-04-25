@@ -1,13 +1,11 @@
 import streamlit as st
 from datetime import date
-import yfinance as yf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas_datareader as pdr
 
 # Load Data
-
-
 START = "2015-01-01"
 TODAY = date.today().strftime("%Y-%m-%d")
 
@@ -19,10 +17,9 @@ selected_stock = st.selectbox('Select dataset for prediction', stocks)
 n_years = st.slider('Years of prediction:', 1, 4)
 period = n_years * 365
 
-@st.cache_data
+@st.cache
 def load_data(ticker):
-    data = yf.download(ticker, START, TODAY)
-    data.reset_index(inplace=True)
+    data = pdr.get_data_yahoo(ticker, start=START, end=TODAY)
     return data
 
 data_load_state = st.text('Loading data...')
@@ -35,8 +32,8 @@ st.write(data.tail())
 # Plot raw data
 st.subheader('Time Series data with Rangeslider')
 plt.figure(figsize=(10, 6))
-plt.plot(data['Date'], data['Open'], label='Open')
-plt.plot(data['Date'], data['Close'], label='Close')
+plt.plot(data.index, data['Open'], label='Open')
+plt.plot(data.index, data['Close'], label='Close')
 plt.xlabel('Date')
 plt.ylabel('Price')
 plt.title('Stock Prices Over Time')
@@ -61,8 +58,8 @@ sma_forecast = np.concatenate((np.full(window_size, np.nan), sma_forecast))
 
 # Plot forecast
 plt.figure(figsize=(10, 6))
-plt.plot(data['Date'], data['Close'], label='Actual')
-plt.plot(data['Date'], sma_forecast, label='SMA Forecast')
+plt.plot(data.index, data['Close'], label='Actual')
+plt.plot(data.index, sma_forecast, label='SMA Forecast')
 plt.xlabel('Date')
 plt.ylabel('Price')
 plt.title('Stock Price Forecast using Simple Moving Average (SMA)')
