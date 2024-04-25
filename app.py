@@ -80,14 +80,20 @@ plt.ylabel('Price')
 plt.title('Predicted Stock Prices')
 plt.legend()
 st.pyplot()
+st.subheader('Bar Graph Comparing Price Values of 4 Companies in Coming Years')
+plt.figure(figsize=(10, 6))
+for stock in stocks:
+    data_stock = load_data(stock)
+    plt.bar(stock, data_stock['Close'][-1], label=stock)
 
-# Additional features
-st.sidebar.header('Additional Features')
-st.sidebar.markdown("""
-- Adjust the window size for Simple Moving Average (SMA) calculation.
-- Choose different stocks for analysis.
-- Forecast for a different number of years.
-""")
+plt.xlabel('Company')
+plt.ylabel('Price')
+plt.title('Price Values of 4 Companies')
+plt.legend()
+st.pyplot()
+
+
+
 
 # Display additional information
 st.sidebar.subheader('About')
