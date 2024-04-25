@@ -1,8 +1,8 @@
+
 import streamlit as st
 from datetime import date
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas_datareader as pdr
 
 # Load Data
@@ -31,14 +31,7 @@ st.write(data.tail())
 
 # Plot raw data
 st.subheader('Time Series data with Rangeslider')
-plt.figure(figsize=(10, 6))
-plt.plot(data.index, data['Open'], label='Open')
-plt.plot(data.index, data['Close'], label='Close')
-plt.xlabel('Date')
-plt.ylabel('Price')
-plt.title('Stock Prices Over Time')
-plt.legend()
-st.pyplot()
+st.line_chart(data[['Open', 'Close']])
 
 # Forecast using Simple Moving Average (SMA)
 st.subheader('Forecast using Simple Moving Average (SMA)')
@@ -57,11 +50,5 @@ for i in range(len(close_prices) - window_size):
 sma_forecast = np.concatenate((np.full(window_size, np.nan), sma_forecast))
 
 # Plot forecast
-plt.figure(figsize=(10, 6))
-plt.plot(data.index, data['Close'], label='Actual')
-plt.plot(data.index, sma_forecast, label='SMA Forecast')
-plt.xlabel('Date')
-plt.ylabel('Price')
-plt.title('Stock Price Forecast using Simple Moving Average (SMA)')
-plt.legend()
-st.pyplot()
+forecast_data = pd.DataFrame({'Date': data.index, 'Actual': data['Close'], 'SMA Forecast': sma_forecast})
+st.line_chart(forecast_data.set_index('Date'))
