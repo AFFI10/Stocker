@@ -1,73 +1,66 @@
 import streamlit as st
+from datetime import date
+
 import yfinance as yf
-import pandas as pd
-import os
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import precision_score
+from fbprophet import Prophet
+from fbprophet.plot import plot_plotly
+from plotly import graph_objs as go
 
-# Load or fetch S&P 500 data
-if os.path.exists("sp500.csv"):
-    sp500 = pd.read_csv("sp500.csv", index_col=0)
-else:
-    sp500 = yf.Ticker("^GSPC")
-    sp500 = sp500.history(period="max")
-    sp500.to_csv("sp500.csv")
+START = "2015-01-01"
+TODAY = date.today().strftime("%Y-%m-%d")
 
-sp500.index = pd.to_datetime(sp500.index)
+st.title('Stock Forecast App')
 
-# Streamlit app
-st.title('S&P 500 Stock Prediction')
+stocks = ('GOOG', 'AAPL', 'MSFT', 'GME')
+selected_stock = st.selectbox('Select dataset for prediction', stocks)
 
-# Display the data
-st.subheader('S&P 500 Data')
-st.write(sp500)
+n_years = st.slider('Years of prediction:', 1, 4)
+period = n_years * 365
 
-# Plot Close price
-st.subheader('S&P 500 Close Price')
-st.line_chart(sp500['Close'])
 
-# Data preprocessing
-del sp500["Dividends"]
-del sp500["Stock Splits"]
-sp500["Tomorrow"] = sp500["Close"].shift(-1)
-sp500["Target"] = (sp500["Tomorrow"] > sp500["Close"]).astype(int)
-sp500 = sp500.loc["1990-01-01":].copy()
-
-# Train Random Forest Model
-model = RandomForestClassifier(n_estimators=100, min_samples_split=100, random_state=1)
-
-# Define predictors
-predictors = ["Close", "Volume", "Open", "High", "Low"]
-
-# Train and predict function
 @st.cache
-def predict(train, test, predictors, model):
-    model.fit(train[predictors], train["Target"])
-    preds = model.predict(test[predictors])
-    preds = pd.Series(preds, index=test.index, name="Predictions")
-    combined = pd.concat([test["Target"], preds], axis=1)
-    return combined
+def load_data(ticker):
+    data = yf.download(ticker, START, TODAY)
+    data.reset_index(inplace=True)
+    return data
 
-# Backtesting function
-def backtest(data, model, predictors, start=2500, step=250):
-    all_predictions = []
+	
+data_load_state = st.text('Loading data...')
+data = load_data(selected_stock)
+data_load_state.text('Loading data... done!')
 
-    for i in range(start, data.shape[0], step):
-        train = data.iloc[0:i].copy()
-        test = data.iloc[i:(i+step)].copy()
-        predictions = predict(train, test, predictors, model)
-        all_predictions.append(predictions)
+st.subheader('Raw data')
+st.write(data.tail())
 
-    return pd.concat(all_predictions)
+# Plot raw data
+def plot_raw_data():
+	fig = go.Figure()
+	fig.add_trace(go.Scatter(x=data['Date'], y=data['Open'], name="stock_open"))
+	fig.add_trace(go.Scatter(x=data['Date'], y=data['Close'], name="stock_close"))
+	fig.layout.update(title_text='Time Series data with Rangeslider', xaxis_rangeslider_visible=True)
+	st.plotly_chart(fig)
+	
+plot_raw_data()
 
-# Perform backtesting
-predictions = backtest(sp500, model, predictors)
+# Predict forecast with Prophet.
+df_train = data[['Date','Close']]
+df_train = df_train.rename(columns={"Date": "ds", "Close": "y"})
 
-# Display predictions
-st.subheader('Predictions')
-st.write(predictions)
+m = Prophet()
+m.fit(df_train)
+future = m.make_future_dataframe(periods=period)
+forecast = m.predict(future)
 
-# Calculate precision score
-precision = precision_score(predictions["Target"], predictions["Predictions"])
-st.write('Precision Score:', precision)
+# Show and plot forecast
+st.subheader('Forecast data')
+st.write(forecast.tail())
+    
+st.write(f'Forecast plot for {n_years} years')
+fig1 = plot_plotly(m, forecast)
+st.plotly_chart(fig1)
+
+st.write("Forecast components")
+fig2 = m.plot_components(forecast)
+st.write(fig2)
+
 
