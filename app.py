@@ -1,69 +1,73 @@
 import streamlit as st
-from datetime import date
 import yfinance as yf
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
+import os
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import precision_score
 
-# Load Data
-START = "2015-01-01"
-TODAY = date.today().strftime("%Y-%m-%d")
+# Load or fetch S&P 500 data
+if os.path.exists("sp500.csv"):
+    sp500 = pd.read_csv("sp500.csv", index_col=0)
+else:
+    sp500 = yf.Ticker("^GSPC")
+    sp500 = sp500.history(period="max")
+    sp500.to_csv("sp500.csv")
 
-st.title('Stock Forecast App')
+sp500.index = pd.to_datetime(sp500.index)
 
-stocks = ('GOOG', 'AAPL', 'MSFT', 'GME')
-selected_stock = st.selectbox('Select dataset for prediction', stocks)
+# Streamlit app
+st.title('S&P 500 Stock Prediction')
 
-n_years = st.slider('Years of prediction:', 1, 4)
-period = n_years * 365
+# Display the data
+st.subheader('S&P 500 Data')
+st.write(sp500)
 
-@st.cache_data
-def load_data(ticker):
-    data = yf.download(ticker, START, TODAY)
-    data.reset_index(inplace=True)
-    return data
+# Plot Close price
+st.subheader('S&P 500 Close Price')
+st.line_chart(sp500['Close'])
 
-data_load_state = st.text('Loading data...')
-data = load_data(selected_stock)
-data_load_state.text('Loading data... done!')
-
-st.subheader('Raw data')
-st.write(data.tail())
-
-# Feature Engineering
-data['Year'] = data['Date'].dt.year
-data['Month'] = data['Date'].dt.month
-data['Day'] = data['Date'].dt.day
-
-# Prepare Data for Training
-X = data[['Year', 'Month', 'Day', 'Open', 'High', 'Low', 'Close']]
-y = data['Close']
-
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Data preprocessing
+del sp500["Dividends"]
+del sp500["Stock Splits"]
+sp500["Tomorrow"] = sp500["Close"].shift(-1)
+sp500["Target"] = (sp500["Tomorrow"] > sp500["Close"]).astype(int)
+sp500 = sp500.loc["1990-01-01":].copy()
 
 # Train Random Forest Model
-model = RandomForestRegressor(n_estimators=100, random_state=42)
-model.fit(X_train, y_train)
+model = RandomForestClassifier(n_estimators=100, min_samples_split=100, random_state=1)
 
-# Forecast using Random Forest
-st.subheader('Forecast using Random Forest')
+# Define predictors
+predictors = ["Close", "Volume", "Open", "High", "Low"]
 
-# Predict on Test Data
-y_pred = model.predict(X_test)
+# Train and predict function
+@st.cache
+def predict(train, test, predictors, model):
+    model.fit(train[predictors], train["Target"])
+    preds = model.predict(test[predictors])
+    preds = pd.Series(preds, index=test.index, name="Predictions")
+    combined = pd.concat([test["Target"], preds], axis=1)
+    return combined
 
-# Calculate RMSE
-rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-st.write('Root Mean Squared Error:', rmse)
+# Backtesting function
+def backtest(data, model, predictors, start=2500, step=250):
+    all_predictions = []
 
-# Plot forecast
-plt.figure(figsize=(10, 6))
-plt.plot(data['Date'][-len(y_test):], y_test, label='Actual')
-plt.plot(data['Date'][-len(y_test):], y_pred, label='Forecast')
-plt.xlabel('Date')
-plt.ylabel('Price')
-plt.title('Stock Price Forecast using Random Forest')
-plt.legend()
-st.pyplot()
+    for i in range(start, data.shape[0], step):
+        train = data.iloc[0:i].copy()
+        test = data.iloc[i:(i+step)].copy()
+        predictions = predict(train, test, predictors, model)
+        all_predictions.append(predictions)
+
+    return pd.concat(all_predictions)
+
+# Perform backtesting
+predictions = backtest(sp500, model, predictors)
+
+# Display predictions
+st.subheader('Predictions')
+st.write(predictions)
+
+# Calculate precision score
+precision = precision_score(predictions["Target"], predictions["Predictions"])
+st.write('Precision Score:', precision)
+
