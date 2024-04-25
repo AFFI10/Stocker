@@ -80,15 +80,20 @@ plt.ylabel('Price')
 plt.title('Predicted Stock Prices')
 plt.legend()
 st.pyplot()
+# Plot bar graph for predicted stock price
 st.subheader('Predicted Stock Price for the Next {} Years'.format(n_years))
-plt.figure(figsize=(8, 6))
-plt.bar('Current', data['Close'][-1], color='blue', label='Current Price')
-plt.bar('Predicted', predicted_values, color='orange', label='Predicted Price')
-plt.xlabel('Price')
-plt.ylabel('Stock Price')
-plt.title('Predicted Stock Price for {} in the Next {} Years'.format(selected_stock, n_years))
-plt.legend()
-st.pyplot()
+if not data.empty:
+    plt.figure(figsize=(8, 6))
+    plt.bar('Current', data['Close'][-1], color='blue', label='Current Price')
+    plt.bar('Predicted', predicted_values, color='orange', label='Predicted Price')
+    plt.xlabel('Price')
+    plt.ylabel('Stock Price')
+    plt.title('Predicted Stock Price for {} in the Next {} Years'.format(selected_stock, n_years))
+    plt.legend()
+    st.pyplot()
+else:
+    st.warning("Data is empty. Please enter a valid stock symbol.")
+
 
 
 
