@@ -1,9 +1,12 @@
-
 import streamlit as st
 from datetime import date
+import yfinance as yf
 import pandas as pd
 import numpy as np
-import pandas_datareader as pdr
+import matplotlib.pyplot as plt
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
 
 # Load Data
 START = "2015-01-01"
@@ -17,9 +20,10 @@ selected_stock = st.selectbox('Select dataset for prediction', stocks)
 n_years = st.slider('Years of prediction:', 1, 4)
 period = n_years * 365
 
-@st.cache
+@st.cache_data
 def load_data(ticker):
-    data = pdr.get_data_yahoo(ticker, start=START, end=TODAY)
+    data = yf.download(ticker, START, TODAY)
+    data.reset_index(inplace=True)
     return data
 
 data_load_state = st.text('Loading data...')
@@ -29,26 +33,37 @@ data_load_state.text('Loading data... done!')
 st.subheader('Raw data')
 st.write(data.tail())
 
-# Plot raw data
-st.subheader('Time Series data with Rangeslider')
-st.line_chart(data[['Open', 'Close']])
+# Feature Engineering
+data['Year'] = data['Date'].dt.year
+data['Month'] = data['Date'].dt.month
+data['Day'] = data['Date'].dt.day
 
-# Forecast using Simple Moving Average (SMA)
-st.subheader('Forecast using Simple Moving Average (SMA)')
+# Prepare Data for Training
+X = data[['Year', 'Month', 'Day', 'Open', 'High', 'Low', 'Close']]
+y = data['Close']
 
-# Prepare data
-close_prices = data['Close'].values
-window_size = 30  # You can adjust this parameter as needed
-sma_forecast = []
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Calculate SMA
-for i in range(len(close_prices) - window_size):
-    sma = np.mean(close_prices[i:i + window_size])
-    sma_forecast.append(sma)
+# Train Random Forest Model
+model = RandomForestRegressor(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
 
-# Pad the forecast with NaNs to align with the original data
-sma_forecast = np.concatenate((np.full(window_size, np.nan), sma_forecast))
+# Forecast using Random Forest
+st.subheader('Forecast using Random Forest')
+
+# Predict on Test Data
+y_pred = model.predict(X_test)
+
+# Calculate RMSE
+rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+st.write('Root Mean Squared Error:', rmse)
 
 # Plot forecast
-forecast_data = pd.DataFrame({'Date': data.index, 'Actual': data['Close'], 'SMA Forecast': sma_forecast})
-st.line_chart(forecast_data.set_index('Date'))
+plt.figure(figsize=(10, 6))
+plt.plot(data['Date'][-len(y_test):], y_test, label='Actual')
+plt.plot(data['Date'][-len(y_test):], y_pred, label='Forecast')
+plt.xlabel('Date')
+plt.ylabel('Price')
+plt.title('Stock Price Forecast using Random Forest')
+plt.legend()
+st.pyplot()
